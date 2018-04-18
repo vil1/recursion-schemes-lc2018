@@ -1,0 +1,6 @@
+target/
+*.class
+.ensime*
+idea/
+*.ipr
+*.iws
