@@ -26,3 +26,4 @@ final case class StructType(fields: Array[StructField]) extends DataType {
   }
 }
 final case class ArrayType(elementType: DataType, containsNull: Boolean) extends DataType 
+
