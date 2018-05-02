@@ -8,3 +8,5 @@ libraryDependencies ++= Seq(
 lazy val fakeSpark = project in file("spark")
 
 lazy val lc2018 = project in file(".") dependsOn fakeSpark
+
+scalafmtOnCompile := true
