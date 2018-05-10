@@ -17,5 +17,12 @@ case object IntegerType extends DataType
 case object LongType extends DataType
 case object StringType extends DataType
 final case class StructField(name: String, dataType: DataType, nullable: Boolean = true, metadata: Metadata = Metadata.empty)
-final case class StructType(fields: Array[StructField]) extends DataType
+final case class StructType(fields: Array[StructField]) extends DataType {
+  override def toString: String = s"StructType${fields.map(_.toString).mkString("(", ", ", ")")}"
+
+  override def equals(other: Any): Boolean = other match {
+    case StructType(otherFields) => (fields zip otherFields).forall{ case (l, r) => l == r}
+    case _ => false
+  }
+}
 final case class ArrayType(elementType: DataType, containsNull: Boolean) extends DataType 
