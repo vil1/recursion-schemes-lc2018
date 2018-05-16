@@ -1,6 +1,6 @@
 target/
 *.class
 .ensime*
-idea/
+.idea/
 *.ipr
 *.iws
