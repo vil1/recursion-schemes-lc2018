@@ -1,4 +1,4 @@
-package lc2018
+package lc2018.solutions
 
 import matryoshka._
 import matryoshka.data._

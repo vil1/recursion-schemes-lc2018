@@ -1,4 +1,4 @@
-package solutions
+package lc2018.solutions
 
 import scala.collection.immutable.ListMap
 import scalaz._, Scalaz._
