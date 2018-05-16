@@ -17,8 +17,16 @@ Everything else should be pretty much work out of the box. This project has a fe
 
 ## Structure of the workshop
 
-This workshop is made of a series of prectical exercises, interleaved with a bunch of useful explanations about specific recursion schemes, patterns and techniques. Each exercise lives in its own git branch and a solution to each exercise is available in another branch with the `-solution` suffix. 
+This workshop is made of a series of prectical exercises,
+interleaved with a bunch of useful explanations about specific recursion schemes, patterns and techniques.
+Each exercise lives in the main package of `src/main/scala`
+and a solution to each exercise is available in the solutions package.
 
+## TOC
 
-
-
+* 0-PRELUDE
+* 1-SCHEMA
+* 2-SCHEMAF => Avro Schema
+* 3-Validation (JTO) + DataF (à donner) + DataWithSchema Generator
+* 4-DataF => Spark Row & Avro
+* 5-JSON Patch (ListF)
