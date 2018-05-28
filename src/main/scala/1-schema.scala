@@ -1,6 +1,6 @@
-package lc2018.solutions
+package lc2018
 
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary
 import scala.collection.immutable.ListMap
 import scalaz._, Scalaz._
 import matryoshka._, implicits._
@@ -26,19 +26,7 @@ object SchemaF extends SchemaFToDataTypeAlgebras with SchemaFArbitrary {
   /**
     * As usual, we need to define a Functor instance for our pattern.
     */
-  implicit val schemaFScalazFunctor: Functor[SchemaF] = new Functor[SchemaF] {
-    def map[A, B](fa: SchemaF[A])(f: A => B): SchemaF[B] = fa match {
-      case StructF(fields) => StructF(fields.map { case (name, value) => name -> f(value) })
-      case ArrayF(elem)    => ArrayF(f(elem))
-      case BooleanF()      => BooleanF()
-      case DateF()         => DateF()
-      case DoubleF()       => DoubleF()
-      case FloatF()        => FloatF()
-      case IntegerF()      => IntegerF()
-      case LongF()         => LongF()
-      case StringF()       => StringF()
-    }
-  }
+  implicit val schemaFScalazFunctor: Functor[SchemaF] = TODO
 
   /**
     * It might be usefull to have a nice string representation of our schemas.
@@ -58,21 +46,7 @@ object SchemaF extends SchemaFToDataTypeAlgebras with SchemaFArbitrary {
     *
     */
   implicit val schemaFDelayShow: Delay[Show, SchemaF] = new Delay[Show, SchemaF] {
-    def apply[A](showA: Show[A]): Show[SchemaF[A]] = new Show[SchemaF[A]] {
-      override def show(schema: SchemaF[A]): Cord = schema match {
-        case StructF(fields) =>
-          val showFields = fields.map { case (k, v) => Cord(k) ++ Cord(": ") ++ showA.show(v) }.toSeq
-          Cord("{ ") ++ Cord.mkCord(Cord(", "), showFields: _*) ++ Cord(" }")
-        case ArrayF(element) => Cord("[ ") ++ showA.show(element) ++ Cord(" ]")
-        case BooleanF()      => Cord("boolean")
-        case DateF()         => Cord("date")
-        case DoubleF()       => Cord("double")
-        case FloatF()        => Cord("float")
-        case IntegerF()      => Cord("integer")
-        case LongF()         => Cord("long")
-        case StringF()       => Cord("string")
-      }
-    }
+    def apply[A](showA: Show[A]): Show[SchemaF[A]] = TODO
   }
 
 }
@@ -97,34 +71,12 @@ trait SchemaFToDataTypeAlgebras {
   /**
     * As usual, simply a function from SchemaF[DataType] to DataType
     */
-  def schemaFToDataType: Algebra[SchemaF, DataType] = {
-    case StructF(fields) => StructType(fields.map { case (name, value) => StructField(name, value) }.toArray)
-    case ArrayF(elem)    => ArrayType(elem, containsNull = false)
-    case BooleanF()      => BooleanType
-    case DateF()         => DateType
-    case DoubleF()       => DoubleType
-    case FloatF()        => FloatType
-    case IntegerF()      => IntegerType
-    case LongF()         => LongType
-    case StringF()       => StringType
-
-  }
+  def schemaFToDataType: Algebra[SchemaF, DataType] = TODO
 
   /**
     * And the other way around, a function from DataType to SchemaF[DataType]
     */
-  def dataTypeToSchemaF: Coalgebra[SchemaF, DataType] = {
-    case StructType(fields) => StructF(ListMap(fields.map(f => f.name -> f.dataType): _*))
-    case ArrayType(elem, _) => ArrayF(elem)
-    case BooleanType        => BooleanF()
-    case DateType           => DateF()
-    case DoubleType         => DoubleF()
-    case FloatType          => FloatF()
-    case IntegerType        => IntegerF()
-    case LongType           => LongF()
-    case StringType         => StringF()
-
-  }
+  def dataTypeToSchemaF: Coalgebra[SchemaF, DataType] = TODO
 
   /**
     * This pair of (co)algebras allows us to create a Birecursive[DataType, SchemaF] instance "for free".
@@ -184,21 +136,20 @@ trait SchemaFToDataTypeAlgebras {
   *
   * You're right of course! We still have to write tests!
   *
-  * Let's meet again in `src/test/scala/1-schema/ParquetSpec.scala`.
+  * And one of the best ways to test some code is to use property-based testing. But for that, we first need
+  * a way to generate random data, in our case random schemas.
+  *
+  * Using scalacheck, we need to write an `Arbitrary[T[SchemaF]]` (with `T`  being any fix-point type).
+  * Once again, we'll resort to `Delay` for that. Usually, this code would go somewhere under src/test/scala,
+  * but we put it there for the sake of having fewer files to edit.
+  *
+  * You can check the tests using this under src/test/scala/1-schema/.
   */
 trait SchemaFArbitrary {
 
   implicit val schemaFDelayArbitrary: Delay[Arbitrary, SchemaF] = new Delay[Arbitrary, SchemaF] {
 
-    def apply[A](A: Arbitrary[A]): Arbitrary[SchemaF[A]] =
-      Arbitrary(
-        Gen.oneOf(
-          Seq(
-            BooleanF[A](),
-            DateF[A]()
-          )
-        )
-      )
+    def apply[A](A: Arbitrary[A]): Arbitrary[SchemaF[A]] = TODO
 
   }
 }

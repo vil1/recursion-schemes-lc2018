@@ -3,8 +3,13 @@ val kindProjector = "org.spire-math" %% "kind-projector" % "0.9.4"
 
 scalaVersion in ThisBuild := "2.12.4"
 
+lazy val matryoshkaVersion = "0.21.3"
+
+resolvers += Resolver.sonatypeRepo("snapshots")
+
 libraryDependencies ++= Seq(
-  "com.slamdata" %% "matryoshka-core" % "0.21.3",
+  "com.slamdata" %% "matryoshka-core" % matryoshkaVersion,
+  "com.slamdata" %% "matryoshka-scalacheck" % matryoshkaVersion,
   "org.apache.avro" % "avro" % "1.8.2"
 )
 
