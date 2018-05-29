@@ -62,6 +62,7 @@ object SchemaRules {
 
     Fix.birecursiveT.cataT(schema)(alg)
   }
+
 }
 
 /**
