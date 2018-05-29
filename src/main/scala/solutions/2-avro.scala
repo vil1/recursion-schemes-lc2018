@@ -94,7 +94,7 @@ trait Labelling {
     envT.lower match {
       case StructF(fields) =>
         fields
-          .foldLeft(SchemaBuilder.record(path.mkString(".")).fields()) {
+          .foldLeft(SchemaBuilder.record(path.mkString("a", ".", "z")).fields) {
             case (builder, (key, value)) =>
               builder.name(key).`type`(value).noDefault()
           }
@@ -139,7 +139,7 @@ trait UsingARegistry {
         } else {
           val record =
             fields
-              .foldLeft(SchemaBuilder.record(fp.toString).fields) {
+              .foldLeft(SchemaBuilder.record("r%x".format(fp)).fields) {
                 case (builder, (k, v)) =>
                   builder.name(k).`type`(v).noDefault
               }

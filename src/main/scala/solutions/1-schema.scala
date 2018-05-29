@@ -193,10 +193,19 @@ trait SchemaFArbitrary {
     def apply[A](A: Arbitrary[A]): Arbitrary[SchemaF[A]] =
       Arbitrary(
         Gen.oneOf(
-          Seq(
-            BooleanF[A](),
-            DateF[A]()
-          )
+          Gen.const(BooleanF[A]()),
+          Gen.const(DateF[A]()),
+          Gen.const(DoubleF[A]()),
+          Gen.const(FloatF[A]()),
+          Gen.const(IntegerF[A]()),
+          Gen.const(LongF[A]()),
+          Gen.const(StringF[A]()),
+          for {
+            nbFields <- Gen.choose(1, 10)
+            names    <- Gen.listOfN(nbFields, Gen.alphaStr).map(_.map("a" ++ _).toSet)
+            types    <- Gen.listOfN(names.size, A.arbitrary)
+          } yield StructF[A](ListMap((names.toList zip types): _*)),
+          A.arbitrary.map(ArrayF.apply _)
         )
       )
 
