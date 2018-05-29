@@ -6,6 +6,7 @@ import matryoshka._
 import matryoshka.data._
 import scalaz.Scalaz._
 import scalaz._
+import solutions.GDataInstances
 
 import scala.collection.immutable.ListMap
 import scala.language.higherKinds
@@ -27,6 +28,8 @@ final case class GFloat[A](value: Float)                extends GData[A]
 final case class GInteger[A](value: Int)                extends GData[A]
 final case class GLong[A](value: Long)                  extends GData[A]
 final case class GString[A](value: String)              extends GData[A]
+
+object GData extends GDataInstances
 
 object SchemaRules {
   type JRule[A] = Rule[JValue, A]
