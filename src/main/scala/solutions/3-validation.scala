@@ -35,7 +35,7 @@ object SchemaRules {
   import Rule._
   import shims._
 
-  implicit val app: Applicative[JRule] = applicativeRule
+  implicit val app: Applicative[JRule] = ???
 
   // CoRecursive.Aux[T[DataF], DataF] - DataF.embed
   //def fromSchemaToRules[T[_[_]], A](schema: SchemaF[A]): Rule[JsValue, T[GData]] = {
@@ -43,11 +43,11 @@ object SchemaRules {
     val alg: Algebra[SchemaF, JRule[Fix[GData]]] = {
       case StructF(fields) =>
         fields.toList
-          .traverse[JRule[?], Fix[GData]] {
+          .traverse[JRule[?], (String, Fix[GData])] {
             case (name, validation) =>
-              (Path \ name).read(_ => validation)
+              (Path \ name).read(_ => validation.map(fx => (name, fx)))
           }
-          .map(fs => Fix(GStruct(fs.toMap)))
+          .map(fs => Fix(GStruct(ListMap(fs: _*))))
 
       case ArrayF(elem) => Rules.pickSeq(elem).map(elems => Fix[GData](GArray(elems)))
       case BooleanF()   => Rules.booleanR.map(x => Fix[GData](GBoolean(x)))
