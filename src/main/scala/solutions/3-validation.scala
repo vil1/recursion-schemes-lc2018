@@ -1,12 +1,11 @@
 package lc2018.solutions
 
-import scalaz._
-import Scalaz._
-import matryoshka._
-import data._
-import implicits._
 import jto.validation._
 import jto.validation.jsonast._
+import matryoshka._
+import matryoshka.data._
+import scalaz.Scalaz._
+import scalaz._
 
 import scala.collection.immutable.ListMap
 import scala.language.higherKinds
@@ -32,13 +31,15 @@ final case class GString[A](value: String)              extends GData[A]
 object SchemaRules {
   type JRule[A] = Rule[JValue, A]
 
-  import Rule._
+  import Rule.applicativeRule
   import shims._
 
-  implicit val app: Applicative[JRule] = ???
+  implicit val ruleApplicativeForScalaz: Applicative[JRule] = new Applicative[JRule] {
+    override def point[A](a: => A): JRule[A] = applicativeRule.point(a)
 
-  // CoRecursive.Aux[T[DataF], DataF] - DataF.embed
-  //def fromSchemaToRules[T[_[_]], A](schema: SchemaF[A]): Rule[JsValue, T[GData]] = {
+    override def ap[A, B](fa: => JRule[A])(f: => JRule[A => B]): JRule[B] = applicativeRule.ap(f)(fa)
+  }
+
   def fromSchemaToRules(schema: Fix[SchemaF]): JRule[Fix[GData]] = {
     val alg: Algebra[SchemaF, JRule[Fix[GData]]] = {
       case StructF(fields) =>
@@ -75,16 +76,88 @@ object SchemaRules {
 trait DataWithSchemaGenerator {
   import org.scalacheck.Gen
 
-  val schemaToDataGen: Algebra[SchemaF, (String, Fix[GData])] = ???
+  import scala.collection.JavaConverters._
 
-  val genSchemaF: Gen[Fix[SchemaF]] = ???
-
-  def genBooleanF: Gen[Fix[BooleanF]] = ???
-
-  val genSchemaAndData: Gen[(Fix[SchemaF], Fix[GData])] =
+  def genSchemaAndData: Gen[(Fix[SchemaF], Fix[GData])] =
     for {
-      schemaF       <- genSchemaF
-      (name, dataF) = Fix.birecursiveT.cataT(schemaF)(schemaToDataGen)
+      schemaF <- genSchemaF
+      dataF   <- Fix.birecursiveT.cataT(schemaF)(schemaToDataGen)
     } yield (schemaF, dataF)
+
+  def schemaToDataGen: Algebra[SchemaF, Gen[Fix[GData]]] = {
+    case ArrayF(elems) =>
+      Gen.listOf(elems).map(lst => Fix[GData](GArray(lst)))
+
+    case StructF(fields) =>
+      val (names, values) = fields.unzip
+      Gen.sequence(values).map(fields => Fix[GData](GStruct(ListMap((names zip fields.asScala).toSeq: _*))))
+
+    case BooleanF() =>
+      Gen.oneOf(true, false).map(value => Fix[GData](GBoolean(value)))
+
+    case DateF() =>
+      Gen.choose(0, Long.MaxValue).map(value => Fix[GData](GDate(new java.util.Date(value))))
+
+    case DoubleF() =>
+      Gen.choose(Double.MinValue, Double.MaxValue).map(value => Fix[GData](GDouble(value)))
+
+    case FloatF() =>
+      Gen.choose(Float.MinValue, Float.MaxValue).map(value => Fix[GData](GFloat(value)))
+
+    case IntegerF() =>
+      Gen.choose(Int.MinValue, Int.MaxValue).map(value => Fix[GData](GInteger(value)))
+
+    case LongF() =>
+      Gen.choose(Long.MinValue, Long.MaxValue).map(value => Fix[GData](GLong(value)))
+
+    case StringF() =>
+      Gen.alphaNumStr.map(value => Fix[GData](GString(value)))
+  }
+
+  def genSchemaF: Gen[Fix[SchemaF]] =
+    for {
+      depth             <- Gen.choose(1, 5)
+      nbTopLevelColumns <- Gen.choose(1, 5)
+      columns           <- Gen.listOfN(nbTopLevelColumns, genStructSchema(depth))
+    } yield Fix[SchemaF](StructF(ListMap(columns: _*)))
+
+  def genValueSchema(): Gen[(String, Fix[SchemaF])] =
+    for {
+      name <- Gen.identifier
+      valueF <- Gen.oneOf[Fix[SchemaF]](
+                 Fix[SchemaF](BooleanF()),
+                 Fix[SchemaF](DateF()),
+                 Fix[SchemaF](DoubleF()),
+                 Fix[SchemaF](FloatF()),
+                 Fix[SchemaF](IntegerF()),
+                 Fix[SchemaF](LongF()),
+                 Fix[SchemaF](StringF()),
+               )
+    } yield (name, valueF)
+
+  def genColumnSchema(maxDepth: Int): Gen[(String, Fix[SchemaF])] =
+    if (maxDepth > 0)
+      Gen.oneOf[(String, Fix[SchemaF])](genValueSchema(), genStructSchema(maxDepth))
+    else genValueSchema()
+
+  def genStructSchema(maxDepth: Int): Gen[(String, Fix[SchemaF])] =
+    for {
+      name     <- Gen.identifier
+      depth    <- Gen.choose(1, maxDepth)
+      nbFields <- Gen.choose(0, 3)
+      fields   <- Gen.listOfN(nbFields, genColumnSchema(maxDepth - depth))
+    } yield (name, Fix[SchemaF](StructF(ListMap(fields: _*))))
+
+  def genArraySchema(maxDepth: Int): Gen[(String, Fix[SchemaF])] =
+    for {
+      name       <- Gen.identifier
+      depth      <- Gen.choose(1, maxDepth)
+      (_, elems) <- genNonArraySchema(maxDepth - depth)
+    } yield (name, Fix[SchemaF](ArrayF(elems)))
+
+  def genNonArraySchema(maxDepth: Int): Gen[(String, Fix[SchemaF])] =
+    if (maxDepth > 0)
+      Gen.oneOf[(String, Fix[SchemaF])](genValueSchema(), genStructSchema(maxDepth))
+    else genValueSchema()
 
 }
