@@ -19,6 +19,9 @@ libraryDependencies ++= Seq(
   "io.github.jto" %% "validation-jsonast"   % validationVersion,
 )
 
+libraryDependencies += "com.codecommit" %% "shims" % "1.2.1"
+
+
 lazy val fakeSpark = project in file("spark")
 
 lazy val lc2018 = project in file(".") dependsOn fakeSpark

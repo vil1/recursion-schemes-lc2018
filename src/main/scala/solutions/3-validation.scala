@@ -30,13 +30,20 @@ final case class GLong[A](value: Long)                  extends GData[A]
 final case class GString[A](value: String)              extends GData[A]
 
 object SchemaRules {
+  type JRule[A] = Rule[JValue, A]
+
+  import Rule._
+  import shims._
+
+  implicit val app: Applicative[JRule] = applicativeRule
+
   // CoRecursive.Aux[T[DataF], DataF] - DataF.embed
   //def fromSchemaToRules[T[_[_]], A](schema: SchemaF[A]): Rule[JsValue, T[GData]] = {
-  def fromSchemaToRules(schema: Fix[SchemaF]): Rule[JValue, Fix[GData]] = {
-    val alg: Algebra[SchemaF, Rule[JValue, Fix[GData]]] = {
+  def fromSchemaToRules(schema: Fix[SchemaF]): JRule[Fix[GData]] = {
+    val alg: Algebra[SchemaF, JRule[Fix[GData]]] = {
       case StructF(fields) =>
         fields.toList
-          .traverse[Rule[JValue, ?], Fix[GData]] {
+          .traverse[JRule[?], Fix[GData]] {
             case (name, validation) =>
               (Path \ name).read(_ => validation)
           }
@@ -68,14 +75,16 @@ object SchemaRules {
 trait DataWithSchemaGenerator {
   import org.scalacheck.Gen
 
+  val schemaToDataGen: Algebra[SchemaF, (String, Fix[GData])] = ???
+
+  val genSchemaF: Gen[Fix[SchemaF]] = ???
+
+  def genBooleanF: Gen[Fix[BooleanF]] = ???
+
   val genSchemaAndData: Gen[(Fix[SchemaF], Fix[GData])] =
     for {
       schemaF       <- genSchemaF
       (name, dataF) = Fix.birecursiveT.cataT(schemaF)(schemaToDataGen)
     } yield (schemaF, dataF)
 
-  val genSchemaF: Gen[Fix[SchemaF]] = ???
-
-
-  val schemaToDataGen : Algebra[SchemaF, (String, Gen[Fix[GData]])] = ???
 }
