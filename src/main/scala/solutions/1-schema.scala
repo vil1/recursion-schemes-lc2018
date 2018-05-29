@@ -32,7 +32,7 @@ object SchemaF {
   }
 
   implicit val schemaFDelayShow: Delay[Show, SchemaF] = new Delay[Show, SchemaF] {
-    def apply[A](showA: Show[A]): Show[SchemaF[A]] = TODO
+    def apply[A](showA: Show[A]): Show[SchemaF[A]] = lc2018.TODO
   }
 
 }

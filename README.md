@@ -17,7 +17,7 @@ Everything else should be pretty much work out of the box. This project has a fe
 
 ## Structure of the workshop
 
-This workshop is made of a series of prectical exercises,
+This workshop is made of a series of practical exercises,
 interleaved with a bunch of useful explanations about specific recursion schemes, patterns and techniques.
 Each exercise lives in the main package of `src/main/scala`
 and a solution to each exercise is available in the solutions package.
@@ -26,7 +26,7 @@ and a solution to each exercise is available in the solutions package.
 
 * 0-PRELUDE
 * 1-SCHEMA
-* 2-SCHEMAF => Avro Schema
-* 3-Validation (JTO) + DataF (à donner) + DataWithSchema Generator
-* 4-DataF => Spark Row & Avro
+* 2-SCHEMAF => Avro Schema (Vil1)
+* 3-Validation (JTO) + DataF (à donner) + DataWithSchema Generator (OGI)
+* 4-DataF => Spark Row & Avro (OGI)
 * 5-JSON Patch (ListF)
