@@ -12,7 +12,6 @@ import org.scalacheck.Prop._
 import org.scalacheck._
 import org.scalatest.{FlatSpec, Matchers}
 import play.api.libs.json._
-import SchemaF._
 
 import scala.collection.immutable.ListMap
 

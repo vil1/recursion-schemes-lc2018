@@ -100,14 +100,49 @@ object AvroConverter extends SchemaToAvroAlgebras {
 
     val zipWithSchemaAlg: CoalgebraM[\/[Incompatibility, ?], DataWithSchema, (Fix[SchemaF], Fix[GData])] = {
 
-      case (structF @ Fix(StructF(fieldsSchema)), dataF @ Fix(GStruct(fields))) =>
+      case (structF @ Fix(StructF(fieldsSchema)), Fix(GStruct(fields))) =>
         val withSchema = GStruct(ListMap(fields.map { case (name, fx) => (name, (fieldsSchema(name), fx)) }.toSeq: _*))
         EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(structF), withSchema))
           .right[Incompatibility]
 
-      case (arrF @ Fix(ArrayF(fieldSchema)), dataF @ Fix(GArray(elems))) =>
+      case (arrF @ Fix(ArrayF(fieldSchema)), Fix(GArray(elems))) =>
         val withSchema = GArray(elems.map(fx => (fieldSchema, fx)))
         EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(arrF), withSchema))
+          .right[Incompatibility]
+
+      case (valueF @ Fix(StringF()), Fix(GString(value))) =>
+        val withSchema = GString[(Fix[SchemaF], Fix[GData])](value)
+        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
+          .right[Incompatibility]
+
+      case (valueF @ Fix(IntegerF()), Fix(GInteger(value))) =>
+        val withSchema = GInteger[(Fix[SchemaF], Fix[GData])](value)
+        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
+          .right[Incompatibility]
+
+      case (valueF @ Fix(LongF()), Fix(GLong(value))) =>
+        val withSchema = GLong[(Fix[SchemaF], Fix[GData])](value)
+        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
+          .right[Incompatibility]
+
+      case (valueF @ Fix(BooleanF()), Fix(GBoolean(value))) =>
+        val withSchema = GBoolean[(Fix[SchemaF], Fix[GData])](value)
+        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
+          .right[Incompatibility]
+
+      case (valueF @ Fix(FloatF()), Fix(GFloat(value))) =>
+        val withSchema = GFloat[(Fix[SchemaF], Fix[GData])](value)
+        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
+          .right[Incompatibility]
+
+      case (valueF @ Fix(DoubleF()), Fix(GDouble(value))) =>
+        val withSchema = GDouble[(Fix[SchemaF], Fix[GData])](value)
+        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
+          .right[Incompatibility]
+
+      case (valueF @ Fix(DateF()), Fix(GDate(value))) =>
+        val withSchema = GDate[(Fix[SchemaF], Fix[GData])](value)
+        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
           .right[Incompatibility]
 
       case (s, d) =>
@@ -129,7 +164,7 @@ object AvroConverter extends SchemaToAvroAlgebras {
       case EnvT((_, GBoolean(el))) => SimpleValue(el).right[Incompatibility]
       case EnvT((_, GFloat(el)))   => SimpleValue(el).right[Incompatibility]
       case EnvT((_, GInteger(el))) => SimpleValue(el).right[Incompatibility]
-      case EnvT((_, GDate(el)))    => SimpleValue(el).right[Incompatibility]
+      case EnvT((_, GDate(el)))    => SimpleValue(el.getTime).right[Incompatibility] // c.f. logical types
       case EnvT((_, GLong(el)))    => SimpleValue(el).right[Incompatibility]
       case EnvT((_, GDouble(el)))  => SimpleValue(el).right[Incompatibility]
       case EnvT((_, GString(el)))  => SimpleValue(el).right[Incompatibility]
