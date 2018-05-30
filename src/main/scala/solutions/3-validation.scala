@@ -4,6 +4,7 @@ import jto.validation._
 import jto.validation.jsonast._
 import matryoshka._
 import matryoshka.data._
+import org.scalacheck.Arbitrary
 import scalaz.Scalaz._
 import scalaz._
 import solutions.GDataInstances
@@ -29,18 +30,17 @@ final case class GInteger[A](value: Int)                extends GData[A]
 final case class GLong[A](value: Long)                  extends GData[A]
 final case class GString[A](value: String)              extends GData[A]
 
-object GData extends GDataInstances
+object GData extends GDataInstances with DataWithSchemaGenerator
 
 object SchemaRules {
   type JRule[A] = Rule[JValue, A]
 
   import Rule.applicativeRule
-  import shims._
 
   implicit val ruleApplicativeForScalaz: Applicative[JRule] = new Applicative[JRule] {
-    override def point[A](a: => A): JRule[A] = applicativeRule.point(a)
+    override def point[A](a: => A): JRule[A] = Rule.pure(a)
 
-    override def ap[A, B](fa: => JRule[A])(f: => JRule[A => B]): JRule[B] = applicativeRule.ap(f)(fa)
+    override def ap[A, B](fa: => JRule[A])(f: => JRule[A => B]): JRule[B] = fa.ap(f)
   }
 
   def fromSchemaToRules(schema: Fix[SchemaF]): JRule[Fix[GData]] = {
@@ -120,8 +120,8 @@ trait DataWithSchemaGenerator {
 
   def genSchemaF: Gen[Fix[SchemaF]] =
     for {
-      depth             <- Gen.choose(1, 5)
-      nbTopLevelColumns <- Gen.choose(1, 5)
+      depth             <- Gen.choose(1, 1)
+      nbTopLevelColumns <- Gen.choose(1, 1)
       columns           <- Gen.listOfN(nbTopLevelColumns, genStructSchema(depth))
     } yield Fix[SchemaF](StructF(ListMap(columns: _*)))
 
@@ -163,5 +163,4 @@ trait DataWithSchemaGenerator {
     if (maxDepth > 0)
       Gen.oneOf[(String, Fix[SchemaF])](genValueSchema(), genStructSchema(maxDepth))
     else genValueSchema()
-
 }
