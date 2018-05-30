@@ -4,11 +4,13 @@ import lc2018.solutions._
 import matryoshka._
 import matryoshka.data.Fix
 import matryoshka.implicits._
+import matryoshka.patterns.EnvT
+import org.apache.avro.Schema
 import scalaz._
 import scalaz.Scalaz._
 
 import scala.language.higherKinds
-import org.apache.avro.generic.GenericContainer
+import org.apache.avro.generic.{GenericContainer, GenericData, GenericRecordBuilder}
 import org.apache.spark.sql.Row
 
 import scala.collection.immutable.ListMap
@@ -76,14 +78,78 @@ object SparkConverter {
   }
 }
 
-object AvroConverter {
+object AvroConverter extends SchemaToAvroAlgebras {
 
-  def fromGDataToAvroGenericData(data: Fix[GData]): GenericContainer = { ??? }
+  import scala.collection.JavaConverters._
+
+  /**
+    * A generic schema (of type [[SchemaF]]) with each element
+    * labelled with the corresponding `avro.Schema`.
+    */
+  type SchemaWithAvro[A] = EnvT[Schema, SchemaF, A]
+
+  type DataWithSchema[A] = EnvT[Schema, GData, A]
+
+  case class Incompatibility(schema: Schema, data: Fix[GData])
+
+  case class SimpleValue(value: Any) extends GenericContainer {
+    override def getSchema: Schema = ???
+  }
+
+  def fromGDataToAvro(schema: Fix[SchemaF], data: Fix[GData]): \/[Incompatibility, GenericContainer] = {
+
+    val zipWithSchemaAlg: CoalgebraM[\/[Incompatibility, ?], DataWithSchema, (Fix[SchemaF], Fix[GData])] = {
+
+      case (structF @ Fix(StructF(fieldsSchema)), dataF @ Fix(GStruct(fields))) =>
+        val withSchema = GStruct(ListMap(fields.map { case (name, fx) => (name, (fieldsSchema(name), fx)) }.toSeq: _*))
+        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(structF), withSchema))
+          .right[Incompatibility]
+
+      case (arrF @ Fix(ArrayF(fieldSchema)), dataF @ Fix(GArray(elems))) =>
+        val withSchema = GArray(elems.map(fx => (fieldSchema, fx)))
+        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(arrF), withSchema))
+          .right[Incompatibility]
+
+      case (s, d) =>
+        Incompatibility(schemaFToAvro(s), d).left
+    }
+
+    val alg: AlgebraM[\/[Incompatibility, ?], DataWithSchema, GenericContainer] = {
+      case EnvT((avroSchema, GStruct(fields))) =>
+        val bldrWithFields = fields.foldLeft(new GenericRecordBuilder(avroSchema)) { (recordBuilder, container) =>
+          val (name, data) = container
+          recordBuilder.set(name, unwrap(data))
+        }
+        bldrWithFields.build().right[Incompatibility]
+
+      case EnvT((avroSchema, GArray(elem))) =>
+        new GenericData.Array[Any](avroSchema, elem.map(unwrap).asJavaCollection)
+          .right[Incompatibility]
+
+      case EnvT((_, GBoolean(el))) => SimpleValue(el).right[Incompatibility]
+      case EnvT((_, GFloat(el)))   => SimpleValue(el).right[Incompatibility]
+      case EnvT((_, GInteger(el))) => SimpleValue(el).right[Incompatibility]
+      case EnvT((_, GDate(el)))    => SimpleValue(el).right[Incompatibility]
+      case EnvT((_, GLong(el)))    => SimpleValue(el).right[Incompatibility]
+      case EnvT((_, GDouble(el)))  => SimpleValue(el).right[Incompatibility]
+      case EnvT((_, GString(el)))  => SimpleValue(el).right[Incompatibility]
+    }
+
+    (schema, data).hyloM[\/[Incompatibility, ?], DataWithSchema, GenericContainer](alg, zipWithSchemaAlg)
+  }
+
+  def unwrap(container: GenericContainer): Any = {
+    container match {
+      case SimpleValue(value) => value
+      case value              => value
+    }
+  }
 }
 
 trait GDataInstances {
 
   implicit val genericDataFTraverse: Traverse[GData] = new Traverse[GData] {
+
     override def traverseImpl[G[_], A, B](fa: GData[A])(f: A => G[B])(
         implicit evidence$1: Applicative[G]): G[GData[B]] = fa match {
       case GArray(elems) =>
