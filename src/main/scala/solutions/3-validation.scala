@@ -35,8 +35,6 @@ object GData extends GDataInstances with DataWithSchemaGenerator
 object SchemaRules {
   type JRule[A] = Rule[JValue, A]
 
-  import Rule.applicativeRule
-
   implicit val ruleApplicativeForScalaz: Applicative[JRule] = new Applicative[JRule] {
     override def point[A](a: => A): JRule[A] = Rule.pure(a)
 
