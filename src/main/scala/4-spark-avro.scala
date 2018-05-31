@@ -31,17 +31,19 @@ import scala.language.higherKinds
   * but
   *   - Struct(a -> Value("b")) will be Row("b") as well (the Row now representing the outer struct)
   *
-  * - For Apache Avro, it's a new kind of pain you'll need to overcome, Avro basically represents all of its data
-  * as if, it will be at one point or another generated into Java classes.
-  * So every "record" or Struct needs to have a qualified name "unique" otherwise the Avro engine will consider
-  * the struct as being the same class.
-  * But as it will obviously have different fields - you'll most likely end up with an error.
+  * - For Apache Avro, it's a new kind of pain you'll need to overcome, Avro needs the Schema a Struct or Array
+  * to be able to build it. So transforming a `GData` into Apache Avro's `GenericRecord` (Struct) or `GenericArray`
+  * won't be as simple as simply traversing the ADT of data, you'll need to `zip` it with its schema to be able
+  * to create any "non-simple" value.
   *
   * Good hunting.
   */
 object SparkConverter {
 
-  def fromGDataToSparkRow(row: Fix[GData]): Row = ???
+  /**
+    *
+    */
+  def fromGDataToSparkRow(row: Fix[GData]): Row = TODO
 }
 
 object AvroConverter extends SchemaToAvroAlgebras {
@@ -53,9 +55,12 @@ object AvroConverter extends SchemaToAvroAlgebras {
     */
   type DataWithSchema[A] = EnvT[Schema, GData, A]
 
+  /**
+    * This is important
+    */
   case class Incompatibility(schema: Schema, data: Fix[GData])
 
-  def fromGDataToAvro(schema: Fix[SchemaF], data: Fix[GData]): \/[Incompatibility, GenericContainer] = ???
+  def fromGDataToAvro(schema: Fix[SchemaF], data: Fix[GData]): \/[Incompatibility, GenericContainer] = TODO
 
 }
 
