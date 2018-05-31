@@ -1,7 +1,8 @@
 package lc2018.solutions
 
 import lc2018.solutions.GData._
-import matryoshka.data._
+import matryoshka._, implicits._
+import matryoshka.data._, Fix._
 import org.apache.avro.generic.GenericData
 import org.scalacheck.Prop._
 import org.scalacheck._
@@ -12,7 +13,7 @@ import scala.collection.immutable.ListMap
 
 class AvroConverterSpec extends Properties("Avro-rules algebras") with SchemaToAvroAlgebras {
 
-  property("should generate valid avro data") = forAll(genSchemaAndData) {
+  property("should generate valid avro data") = forAll(genSchemaAndData[Fix[SchemaF], Fix[GData]]) {
     case (schema, data) =>
       val result      = fromGDataToAvro(schema, data)
       val avroSchema  = schemaFToAvro(schema)

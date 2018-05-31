@@ -4,7 +4,7 @@ import jto.validation.jsonast.Ast
 import lc2018.solutions.GData._
 import lc2018.solutions.SchemaRules._
 import matryoshka._
-import matryoshka.data._
+import matryoshka.data._, Fix._
 import matryoshka.implicits._
 import org.joda.time.LocalDateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -17,7 +17,7 @@ import scala.collection.immutable.ListMap
 
 class SchemaRulesSpec extends Properties("Schema-rules algebras") with SchemaToAvroAlgebras {
 
-  property("should generate valid and compatible data vs schema") = forAll(genSchemaAndData) {
+  property("should generate valid and compatible data vs schema") = forAll(genSchemaAndData[Fix[SchemaF], Fix[GData]]) {
     case (schema, data) =>
       val rules       = fromSchemaToRules(schema)
       val jsonPayload = toJson(data)

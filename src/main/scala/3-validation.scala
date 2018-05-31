@@ -7,7 +7,7 @@ import matryoshka.data._
 import org.scalacheck.Arbitrary
 import scalaz.Scalaz._
 import scalaz._
-import GDataInstances
+//import GDataInstances._
 
 import scala.collection.immutable.ListMap
 import scala.language.higherKinds
@@ -30,7 +30,7 @@ final case class GInteger[A](value: Int)                extends GData[A]
 final case class GLong[A](value: Long)                  extends GData[A]
 final case class GString[A](value: String)              extends GData[A]
 
-object GData extends GDataInstances with DataWithSchemaGenerator
+object GData //extends GDataInstances with DataWithSchemaGenerator
 
 object SchemaRules {
   type JRule[A] = Rule[JValue, A]

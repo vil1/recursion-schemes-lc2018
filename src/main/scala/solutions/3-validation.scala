@@ -2,7 +2,7 @@ package lc2018.solutions
 
 import jto.validation._
 import jto.validation.jsonast._
-import matryoshka._
+import matryoshka._, implicits._
 import matryoshka.data._
 import org.scalacheck.Arbitrary
 import scalaz.Scalaz._
@@ -41,27 +41,28 @@ object SchemaRules {
     override def ap[A, B](fa: => JRule[A])(f: => JRule[A => B]): JRule[B] = fa.ap(f)
   }
 
-  def fromSchemaToRules(schema: Fix[SchemaF]): JRule[Fix[GData]] = {
-    val alg: Algebra[SchemaF, JRule[Fix[GData]]] = {
+  def fromSchemaToRules[S, D](schema: S)(implicit S: Recursive.Aux[S, SchemaF],
+                                         D: Corecursive.Aux[D, GData]): JRule[D] = {
+    val alg: Algebra[SchemaF, JRule[D]] = {
       case StructF(fields) =>
         fields.toList
-          .traverse[JRule[?], (String, Fix[GData])] {
+          .traverse[JRule, (String, D)] {
             case (name, validation) =>
               (Path \ name).read(_ => validation.map(fx => (name, fx)))
           }
-          .map(fs => Fix(GStruct(ListMap(fs: _*))))
+          .map(fs => GStruct(ListMap(fs: _*)).embed)
 
-      case ArrayF(elem) => Rules.pickSeq(elem).map(elems => Fix[GData](GArray(elems)))
-      case BooleanF()   => Rules.booleanR.map(x => Fix[GData](GBoolean(x)))
-      case DateF()      => Rules.stringR.andThen(Rules.isoDateR).map(x => Fix[GData](GDate(x)))
-      case DoubleF()    => Rules.doubleR.map(x => Fix[GData](GDouble(x)))
-      case FloatF()     => Rules.floatR.map(x => Fix[GData](GFloat(x)))
-      case IntegerF()   => Rules.intR.map(x => Fix[GData](GInteger(x)))
-      case LongF()      => Rules.longR.map(x => Fix[GData](GLong(x)))
-      case StringF()    => Rules.stringR.map(x => Fix[GData](GString(x)))
+      case ArrayF(elem) => Rules.pickSeq(elem).map(elems => GArray(elems).embed)
+      case BooleanF()   => Rules.booleanR.map(x => GBoolean[D](x).embed)
+      case DateF()      => Rules.stringR.andThen(Rules.isoDateR).map(x => GDate[D](x).embed)
+      case DoubleF()    => Rules.doubleR.map(x => GDouble[D](x).embed)
+      case FloatF()     => Rules.floatR.map(x => GFloat[D](x).embed)
+      case IntegerF()   => Rules.intR.map(x => GInteger[D](x).embed)
+      case LongF()      => Rules.longR.map(x => GLong[D](x).embed)
+      case StringF()    => Rules.stringR.map(x => GString[D](x).embed)
     }
 
-    Fix.birecursiveT.cataT(schema)(alg)
+    schema cata alg
   }
 
 }
@@ -80,85 +81,85 @@ trait DataWithSchemaGenerator {
 
   import scala.collection.JavaConverters._
 
-  def genSchemaAndData: Gen[(Fix[SchemaF], Fix[GData])] =
+  def genSchemaAndData[S, D](implicit S: Birecursive.Aux[S, SchemaF], D: Corecursive.Aux[D, GData]): Gen[(S, D)] =
     for {
       schemaF <- genSchemaF
-      dataF   <- Fix.birecursiveT.cataT(schemaF)(schemaToDataGen)
+      dataF   <- schemaF cata schemaToDataGen
     } yield (schemaF, dataF)
 
-  def schemaToDataGen: Algebra[SchemaF, Gen[Fix[GData]]] = {
+  def schemaToDataGen[D](implicit D: Corecursive.Aux[D, GData]): Algebra[SchemaF, Gen[D]] = {
     case ArrayF(elems) =>
-      Gen.listOf(elems).map(lst => Fix[GData](GArray(lst)))
+      Gen.listOf(elems).map(lst => GArray(lst).embed)
 
     case StructF(fields) =>
       val (names, values) = fields.unzip
-      Gen.sequence(values).map(fields => Fix[GData](GStruct(ListMap((names zip fields.asScala).toSeq: _*))))
+      Gen.sequence(values).map(fields => GStruct(ListMap((names zip fields.asScala).toSeq: _*)).embed)
 
     case BooleanF() =>
-      Gen.oneOf(true, false).map(value => Fix[GData](GBoolean(value)))
+      Gen.oneOf(true, false).map(value => GBoolean[D](value).embed)
 
     case DateF() =>
-      Gen.choose(0, Long.MaxValue).map(value => Fix[GData](GDate(new java.util.Date(value))))
+      Gen.choose(0, Long.MaxValue).map(value => GDate[D](new java.util.Date(value)).embed)
 
     case DoubleF() =>
-      Gen.choose(Double.MinValue, Double.MaxValue).map(value => Fix[GData](GDouble(value)))
+      Gen.choose(Double.MinValue, Double.MaxValue).map(value => GDouble[D](value).embed)
 
     case FloatF() =>
-      Gen.choose(Float.MinValue, Float.MaxValue).map(value => Fix[GData](GFloat(value)))
+      Gen.choose(Float.MinValue, Float.MaxValue).map(value => GFloat[D](value).embed)
 
     case IntegerF() =>
-      Gen.choose(Int.MinValue, Int.MaxValue).map(value => Fix[GData](GInteger(value)))
+      Gen.choose(Int.MinValue, Int.MaxValue).map(value => GInteger[D](value).embed)
 
     case LongF() =>
-      Gen.choose(Long.MinValue, Long.MaxValue).map(value => Fix[GData](GLong(value)))
+      Gen.choose(Long.MinValue, Long.MaxValue).map(value => GLong[D](value).embed)
 
     case StringF() =>
-      Gen.alphaNumStr.map(value => Fix[GData](GString(value)))
+      Gen.alphaNumStr.map(value => GString[D](value).embed)
   }
 
-  def genSchemaF: Gen[Fix[SchemaF]] =
+  def genSchemaF[S](implicit S: Corecursive.Aux[S, SchemaF]): Gen[S] =
     for {
       depth             <- Gen.choose(1, 1)
       nbTopLevelColumns <- Gen.choose(1, 1)
       columns           <- Gen.listOfN(nbTopLevelColumns, genStructSchema(depth))
-    } yield Fix[SchemaF](StructF(ListMap(columns: _*)))
+    } yield StructF(ListMap(columns: _*)).embed
 
-  def genValueSchema(): Gen[(String, Fix[SchemaF])] =
+  def genValueSchema[S](implicit S: Corecursive.Aux[S, SchemaF]): Gen[(String, S)] =
     for {
       name <- Gen.identifier
-      valueF <- Gen.oneOf[Fix[SchemaF]](
-                 Fix[SchemaF](BooleanF()),
-                 Fix[SchemaF](DateF()),
-                 Fix[SchemaF](DoubleF()),
-                 Fix[SchemaF](FloatF()),
-                 Fix[SchemaF](IntegerF()),
-                 Fix[SchemaF](LongF()),
-                 Fix[SchemaF](StringF()),
+      valueF <- Gen.oneOf(
+                 BooleanF[S]().embed,
+                 DateF[S]().embed,
+                 DoubleF[S]().embed,
+                 FloatF[S]().embed,
+                 IntegerF[S]().embed,
+                 LongF[S]().embed,
+                 StringF[S]().embed,
                )
     } yield (name, valueF)
 
-  def genColumnSchema(maxDepth: Int): Gen[(String, Fix[SchemaF])] =
+  def genColumnSchema[S](maxDepth: Int)(implicit S: Corecursive.Aux[S, SchemaF]): Gen[(String, S)] =
     if (maxDepth > 0)
-      Gen.oneOf[(String, Fix[SchemaF])](genValueSchema(), genStructSchema(maxDepth))
-    else genValueSchema()
+      Gen.oneOf[(String, S)](genValueSchema, genStructSchema(maxDepth))
+    else genValueSchema
 
-  def genStructSchema(maxDepth: Int): Gen[(String, Fix[SchemaF])] =
+  def genStructSchema[S](maxDepth: Int)(implicit S: Corecursive.Aux[S, SchemaF]): Gen[(String, S)] =
     for {
       name     <- Gen.identifier
       depth    <- Gen.choose(1, maxDepth)
       nbFields <- Gen.choose(0, 3)
       fields   <- Gen.listOfN(nbFields, genColumnSchema(maxDepth - depth))
-    } yield (name, Fix[SchemaF](StructF(ListMap(fields: _*))))
+    } yield (name, StructF(ListMap(fields: _*)).embed)
 
-  def genArraySchema(maxDepth: Int): Gen[(String, Fix[SchemaF])] =
+  def genArraySchema[S](maxDepth: Int)(implicit S: Corecursive.Aux[S, SchemaF]): Gen[(String, S)] =
     for {
       name       <- Gen.identifier
       depth      <- Gen.choose(1, maxDepth)
       (_, elems) <- genNonArraySchema(maxDepth - depth)
-    } yield (name, Fix[SchemaF](ArrayF(elems)))
+    } yield (name, ArrayF(elems).embed)
 
-  def genNonArraySchema(maxDepth: Int): Gen[(String, Fix[SchemaF])] =
+  def genNonArraySchema[S](maxDepth: Int)(implicit S: Corecursive.Aux[S, SchemaF]): Gen[(String, S)] =
     if (maxDepth > 0)
-      Gen.oneOf[(String, Fix[SchemaF])](genValueSchema(), genStructSchema(maxDepth))
-    else genValueSchema()
+      Gen.oneOf[(String, S)](genValueSchema, genStructSchema(maxDepth))
+    else genValueSchema
 }
