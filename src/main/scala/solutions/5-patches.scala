@@ -60,6 +60,31 @@ trait PatchAlgebras {
       }.getOrElse(InvalidPath().left)
   }
 
-  def applyPatch[S, D](op: Operation): Algebra[ListF[Step[S, D], ?], D] = TODO
+  def updateValue[S, D](implicit S: Recursive.Aux[S, SchemaF],
+                        D: Birecursive.Aux[D, GData]): Algebra[ListF[Step[S, D], ?], Option[D]] = {
+    case NilF()                   => None
+    case ConsF(LastStep(data), _) => Some(data)
+    case ConsF(InnerStep(position, schema, current), Some(newData)) =>
+      doUpdate(position, current, newData)
+    case _ => None
+  }
 
+  def doUpdate[D](position: Position, current: D, newData: D)(implicit D: Birecursive.Aux[D, GData]): Option[D] =
+    (position, current.project) match {
+      case (Field(n), GStruct(fields)) =>
+        GStruct(fields.map {
+          case (name, field) =>
+            if (name == n) name -> newData else name -> field
+        }).embed.some
+      case (Index(i), GArray(elements)) =>
+        GArray(elements.take(i) ++ Seq(newData) ++ elements.drop(i + 1)).embed.some
+      case _ => None
+    }
+
+  def applyPatch[S, D](schema: S, patch: JsonPatch, current: D)(
+      implicit S: Recursive.Aux[S, SchemaF],
+      D: Birecursive.Aux[D, GData]): EarlyResult \/ Option[D] =
+    (patch.path, schema, current).hyloM[ShortCircuitable, ListF[Step[S, D], ?], Option[D]](
+      new AlgebraOps[ListF[Step[S, D], ?], Option[D]](updateValue).generalizeM[ShortCircuitable],
+      validatePatch(patch.value))
 }
