@@ -29,3 +29,5 @@ lazy val lc2018 = project in file(".") dependsOn fakeSpark
 scalafmtOnCompile := true
 
 addCompilerPlugin(kindProjector)
+
+parallelExecution in Test := false

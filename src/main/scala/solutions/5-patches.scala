@@ -16,15 +16,14 @@ object Step {
   def last[S, D](data: D): Step[S, D]                            = LastStep[S, D](data)
 }
 
-sealed trait EarlyResult                                                                extends Product with Serializable
-final case class InvalidPath()                                                          extends EarlyResult
-final case class InvalidPatch(errors: Seq[(jto.validation.Path, Seq[ValidationError])]) extends EarlyResult
+sealed trait EarlyResult                           extends Product with Serializable
+final case class InvalidPath(path: List[Position]) extends EarlyResult
+final case class InvalidPatch(value: JValue, errors: Seq[(jto.validation.Path, Seq[ValidationError])])
+    extends EarlyResult
 
 trait PatchAlgebras {
 
-  type Path = List[Position]
-
-  type Traversal[Schema, Data] = (Path, Schema, Data)
+  type Traversal[Schema, Data] = (List[Position], Schema, Data)
 
   type ShortCircuitable[A] = EarlyResult \/ A
 
@@ -37,54 +36,54 @@ trait PatchAlgebras {
 
   def lookupD[D](position: Position, data: D)(implicit D: Recursive.Aux[D, GData]): Option[D] =
     (position, data.project) match {
-      case _ => None
+      case (Field(name), GStruct(fields)) => fields.get(name)
+      case (Index(idx), GArray(elements)) => if (idx >= 0 && idx < elements.size) elements(idx).some else None
+      case _                              => None
     }
 
   def validatePatch[S, D](patchValue: JValue)(
       implicit S: Recursive.Aux[S, SchemaF],
       D: Birecursive.Aux[D, GData]): CoalgebraM[ShortCircuitable, ListF[Step[S, D], ?], Traversal[S, D]] = {
     case (Nil, _, _) => NilF().right
-    case (path @ (last :: Nil), schema, data) =>
-      lookupS(last, schema)
-        .map { subSchema =>
-          val validator = SchemaRules.fromSchemaToRules(schema)
-          \/.fromEither(validator.validate(patchValue).toEither)
-            .bimap(InvalidPatch.apply, { subData =>
-              ConsF(Step.last[S, D](data), (List.empty[Position], subSchema, subData))
-            })
-        }
-        .getOrElse(InvalidPath().left)
+    case (End :: Nil, schema, data) =>
+      val validator = SchemaRules.fromSchemaToRules(schema)
+      \/.fromEither(validator.validate(patchValue).toEither)
+        .bimap(
+          InvalidPatch(patchValue, _), { subData =>
+            ConsF(Step.last[S, D](subData), (List.empty[Position], schema, data))
+          }
+        )
+
     case (path, schema, data) =>
       (lookupS(path.head, schema) |@| lookupD(path.head, data)) { (subSchema, subData) =>
         ConsF(Step.inner(path.head, schema, data), (path.tail, subSchema, subData)).right
-      }.getOrElse(InvalidPath().left)
+      }.getOrElse(InvalidPath(path).left)
   }
 
   def updateValue[S, D](implicit S: Recursive.Aux[S, SchemaF],
-                        D: Birecursive.Aux[D, GData]): Algebra[ListF[Step[S, D], ?], Option[D]] = {
-    case NilF()                   => None
-    case ConsF(LastStep(data), _) => Some(data)
-    case ConsF(InnerStep(position, schema, current), Some(newData)) =>
+                        D: Birecursive.Aux[D, GData]): AlgebraM[ShortCircuitable, ListF[Step[S, D], ?], D] = {
+    case NilF()                   => GBoolean[D](true).embed.right // hugly hack
+    case ConsF(LastStep(data), _) => data.right
+    case ConsF(InnerStep(position, schema, current), newData) =>
       doUpdate(position, current, newData)
-    case _ => None
+    case _ => InvalidPath(Nil).left
   }
 
-  def doUpdate[D](position: Position, current: D, newData: D)(implicit D: Birecursive.Aux[D, GData]): Option[D] =
+  def doUpdate[D](position: Position, current: D, newData: D)(
+      implicit D: Birecursive.Aux[D, GData]): ShortCircuitable[D] =
     (position, current.project) match {
       case (Field(n), GStruct(fields)) =>
         GStruct(fields.map {
           case (name, field) =>
             if (name == n) name -> newData else name -> field
-        }).embed.some
+        }).embed.right
       case (Index(i), GArray(elements)) =>
-        GArray(elements.take(i) ++ Seq(newData) ++ elements.drop(i + 1)).embed.some
-      case _ => None
+        GArray(elements.take(i) ++ Seq(newData) ++ elements.drop(i + 1)).embed.right
+      case _ => InvalidPath(position :: Nil).left
     }
 
-  def applyPatch[S, D](schema: S, patch: JsonPatch, current: D)(
-      implicit S: Recursive.Aux[S, SchemaF],
-      D: Birecursive.Aux[D, GData]): EarlyResult \/ Option[D] =
-    (patch.path, schema, current).hyloM[ShortCircuitable, ListF[Step[S, D], ?], Option[D]](
-      new AlgebraOps[ListF[Step[S, D], ?], Option[D]](updateValue).generalizeM[ShortCircuitable],
-      validatePatch(patch.value))
+  def applyPatch[S, D](schema: S, patch: JsonPatch, current: D)(implicit S: Recursive.Aux[S, SchemaF],
+                                                                D: Birecursive.Aux[D, GData]): EarlyResult \/ D =
+    (patch.path, schema, current)
+      .hyloM[ShortCircuitable, ListF[Step[S, D], ?], D](updateValue, validatePatch(patch.value))
 }

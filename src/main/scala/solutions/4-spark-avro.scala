@@ -6,8 +6,7 @@ import matryoshka.data.Fix
 import matryoshka.implicits._
 import matryoshka.patterns.EnvT
 import org.apache.avro.Schema
-import scalaz._
-import scalaz.Scalaz._
+import scalaz._, Scalaz._
 
 import scala.language.higherKinds
 import org.apache.avro.generic.{GenericContainer, GenericData, GenericRecordBuilder}
@@ -90,87 +89,82 @@ object AvroConverter extends SchemaToAvroAlgebras {
 
   type DataWithSchema[A] = EnvT[Schema, GData, A]
 
-  case class Incompatibility(schema: Schema, data: Fix[GData])
+  case class Incompatibility[D](schema: Schema, data: D)
 
   case class SimpleValue(value: Any) extends GenericContainer {
     override def getSchema: Schema = ???
   }
 
-  def fromGDataToAvro(schema: Fix[SchemaF], data: Fix[GData]): \/[Incompatibility, GenericContainer] = {
+  def fromGDataToAvro[S, D](schema: S, data: D)(
+      implicit S: Birecursive.Aux[S, SchemaF],
+      D: Birecursive.Aux[D, GData]): \/[Incompatibility[D], GenericContainer] = {
 
-    val zipWithSchemaAlg: CoalgebraM[\/[Incompatibility, ?], DataWithSchema, (Fix[SchemaF], Fix[GData])] = {
+    val zipWithSchemaAlg: CoalgebraM[\/[Incompatibility[D], ?], DataWithSchema, (S, D)] = {
+      case (sch, dat) =>
+        (sch.project, dat.project) match {
 
-      case (structF @ Fix(StructF(fieldsSchema)), Fix(GStruct(fields))) =>
-        val withSchema = GStruct(ListMap(fields.map { case (name, fx) => (name, (fieldsSchema(name), fx)) }.toSeq: _*))
-        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(structF), withSchema))
-          .right[Incompatibility]
+          case (structF @ StructF(fieldsSchema), GStruct(fields)) =>
+            val withSchema = GStruct(
+              ListMap(fields.map { case (name, fx) => (name, (fieldsSchema(name), fx)) }.toSeq: _*))
+            EnvT[Schema, GData, (S, D)]((schemaFToAvro(structF.embed), withSchema)).right
 
-      case (arrF @ Fix(ArrayF(fieldSchema)), Fix(GArray(elems))) =>
-        val withSchema = GArray(elems.map(fx => (fieldSchema, fx)))
-        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(arrF), withSchema))
-          .right[Incompatibility]
+          case (arrF @ ArrayF(fieldSchema), GArray(elems)) =>
+            val withSchema = GArray(elems.map(fx => (fieldSchema, fx)))
+            EnvT[Schema, GData, (S, D)]((schemaFToAvro(arrF.embed), withSchema)).right
 
-      case (valueF @ Fix(StringF()), Fix(GString(value))) =>
-        val withSchema = GString[(Fix[SchemaF], Fix[GData])](value)
-        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
-          .right[Incompatibility]
+          case (valueF @ StringF(), GString(value)) =>
+            val withSchema = GString[(S, D)](value)
+            EnvT[Schema, GData, (S, D)]((schemaFToAvro(valueF.embed), withSchema)).right
 
-      case (valueF @ Fix(IntegerF()), Fix(GInteger(value))) =>
-        val withSchema = GInteger[(Fix[SchemaF], Fix[GData])](value)
-        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
-          .right[Incompatibility]
+          case (valueF @ IntegerF(), GInteger(value)) =>
+            val withSchema = GInteger[(S, D)](value)
+            EnvT[Schema, GData, (S, D)]((schemaFToAvro(valueF.embed), withSchema)).right
 
-      case (valueF @ Fix(LongF()), Fix(GLong(value))) =>
-        val withSchema = GLong[(Fix[SchemaF], Fix[GData])](value)
-        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
-          .right[Incompatibility]
+          case (valueF @ LongF(), GLong(value)) =>
+            val withSchema = GLong[(S, D)](value)
+            EnvT[Schema, GData, (S, D)]((schemaFToAvro(valueF.embed), withSchema)).right
 
-      case (valueF @ Fix(BooleanF()), Fix(GBoolean(value))) =>
-        val withSchema = GBoolean[(Fix[SchemaF], Fix[GData])](value)
-        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
-          .right[Incompatibility]
+          case (valueF @ BooleanF(), GBoolean(value)) =>
+            val withSchema = GBoolean[(S, D)](value)
+            EnvT[Schema, GData, (S, D)]((schemaFToAvro(valueF.embed), withSchema)).right
 
-      case (valueF @ Fix(FloatF()), Fix(GFloat(value))) =>
-        val withSchema = GFloat[(Fix[SchemaF], Fix[GData])](value)
-        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
-          .right[Incompatibility]
+          case (valueF @ FloatF(), GFloat(value)) =>
+            val withSchema = GFloat[(S, D)](value)
+            EnvT[Schema, GData, (S, D)]((schemaFToAvro(valueF.embed), withSchema)).right
 
-      case (valueF @ Fix(DoubleF()), Fix(GDouble(value))) =>
-        val withSchema = GDouble[(Fix[SchemaF], Fix[GData])](value)
-        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
-          .right[Incompatibility]
+          case (valueF @ DoubleF(), GDouble(value)) =>
+            val withSchema = GDouble[(S, D)](value)
+            EnvT[Schema, GData, (S, D)]((schemaFToAvro(valueF.embed), withSchema)).right
 
-      case (valueF @ Fix(DateF()), Fix(GDate(value))) =>
-        val withSchema = GDate[(Fix[SchemaF], Fix[GData])](value)
-        EnvT[Schema, GData, (Fix[SchemaF], Fix[GData])]((schemaFToAvro(valueF), withSchema))
-          .right[Incompatibility]
+          case (valueF @ DateF(), GDate(value)) =>
+            val withSchema = GDate[(S, D)](value)
+            EnvT[Schema, GData, (S, D)]((schemaFToAvro(valueF.embed), withSchema)).right
 
-      case (s, d) =>
-        Incompatibility(schemaFToAvro(s), d).left
+          case (s, d) =>
+            Incompatibility(schemaFToAvro(s.embed), d.embed).left
+        }
     }
-
-    val alg: AlgebraM[\/[Incompatibility, ?], DataWithSchema, GenericContainer] = {
+    val alg: AlgebraM[\/[Incompatibility[D], ?], DataWithSchema, GenericContainer] = {
       case EnvT((avroSchema, GStruct(fields))) =>
         val bldrWithFields = fields.foldLeft(new GenericRecordBuilder(avroSchema)) { (recordBuilder, container) =>
           val (name, data) = container
           recordBuilder.set(name, unwrap(data))
         }
-        bldrWithFields.build().right[Incompatibility]
+        bldrWithFields.build().right
 
       case EnvT((avroSchema, GArray(elem))) =>
-        new GenericData.Array[Any](avroSchema, elem.map(unwrap).asJavaCollection)
-          .right[Incompatibility]
+        new GenericData.Array[Any](avroSchema, elem.map(unwrap).asJavaCollection).right
 
-      case EnvT((_, GBoolean(el))) => SimpleValue(el).right[Incompatibility]
-      case EnvT((_, GFloat(el)))   => SimpleValue(el).right[Incompatibility]
-      case EnvT((_, GInteger(el))) => SimpleValue(el).right[Incompatibility]
-      case EnvT((_, GDate(el)))    => SimpleValue(el.getTime).right[Incompatibility] // c.f. logical types
-      case EnvT((_, GLong(el)))    => SimpleValue(el).right[Incompatibility]
-      case EnvT((_, GDouble(el)))  => SimpleValue(el).right[Incompatibility]
-      case EnvT((_, GString(el)))  => SimpleValue(el).right[Incompatibility]
+      case EnvT((_, GBoolean(el))) => SimpleValue(el).right
+      case EnvT((_, GFloat(el)))   => SimpleValue(el).right
+      case EnvT((_, GInteger(el))) => SimpleValue(el).right
+      case EnvT((_, GDate(el)))    => SimpleValue(el.getTime).right // c.f. logical types
+      case EnvT((_, GLong(el)))    => SimpleValue(el).right
+      case EnvT((_, GDouble(el)))  => SimpleValue(el).right
+      case EnvT((_, GString(el)))  => SimpleValue(el).right
     }
 
-    (schema, data).hyloM[\/[Incompatibility, ?], DataWithSchema, GenericContainer](alg, zipWithSchemaAlg)
+    (schema, data).hyloM[\/[Incompatibility[D], ?], DataWithSchema, GenericContainer](alg, zipWithSchemaAlg)
   }
 
   def unwrap(container: GenericContainer): Any = {
