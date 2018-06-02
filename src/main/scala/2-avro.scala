@@ -1,10 +1,12 @@
 package lc2018
 
-import org.apache.avro.Schema
+import org.apache.avro.{LogicalTypes, _}
 import matryoshka._, implicits._, patterns.EnvT
+import scala.collection.immutable.ListMap
 import scalaz._, Scalaz._
 
 import scala.language.higherKinds
+import scala.collection.JavaConverters._
 
 /**
   * There is a problem that makes writing SchemaF <-> Avro (co)algebras more difficult.
@@ -20,7 +22,7 @@ import scala.language.higherKinds
   * maybe you can take a few minutes to try and imagine how we can solve that problem in general,
   * even if you don't know how to implement your solution using recursion-schemes yet.
   */
-trait SchemaToAvroAlgebras extends Labelling with UsingARegistry {}
+trait SchemaToAvroAlgebras extends Labelling with UsingARegistry with AvroCoalgebra {}
 
 /**
   * The first solution comes from the observation that our schemas are in fact trees. And trees have
@@ -76,9 +78,6 @@ trait Labelling {
     */
   def labelledToSchema: Algebra[Labelled, Schema] = TODO
 
-  /**
-    *
-    */
   def schemaFToAvro[T](schemaF: T)(implicit T: Recursive.Aux[T, SchemaF]): Schema =
     (List.empty[String], schemaF).hylo(labelledToSchema, labelNodesWithPath)
 }
@@ -87,17 +86,37 @@ trait Labelling {
   * That first solution was (relatively) simple but it is not completely satisfying.
   * We needed both an algebra and a coalgebra to got from our SchemaF to Avro's Schema, which forced us to
   * use hylo.
+  *
+  * Fortunately, every scheme (and the related algebra) come with a "monadic" version. In this version, we
+  * have to "wrap" the result of our algebras inside our monad of choice. The scheme will then use this
+  * monad's bind at each step. That has plenty of cool uses.
+  *
+  * We can for example "short-circuit" the traversal by using \/ or Option as our monad. Or in this very case
+  * we can use the State monad to keep track of what records we've already created.
+  *
+  * A note though: in order to use monadic schemes, we need a Traverse instance for our pattern-functor.
   */
 trait UsingARegistry {
-  type Registry[A] = State[Map[Long, Schema], A]
+
+  type Registry[A] = State[Map[Int, Schema], A]
+
+  def fingerprint(fields: Map[String, Schema]): Int = fields.hashCode
 
   def useARegistry: AlgebraM[Registry, SchemaF, Schema] = TODO
 
-  implicit val schemaFTraverse: Traverse[SchemaF] = new Traverse[SchemaF] {
-    override def traverseImpl[G[_], A, B](fa: SchemaF[A])(f: A => G[B])(implicit G: Applicative[G]): G[SchemaF[B]] =
-      TODO
-  }
+  implicit val schemaFTraverse: Traverse[SchemaF] = TODO
 
-  def toAvro[T](schemaF: T)(implicit T: Recursive.Aux[T, SchemaF]) =
-    schemaF.cataM(useARegistry)
+  def toAvro[T](schemaF: T)(implicit T: Recursive.Aux[T, SchemaF]): Schema =
+    schemaF.cataM(useARegistry).run(Map.empty)._2
+}
+
+trait AvroCoalgebra {
+
+  /**
+    * Of course we also need a coalgebra to go from Avro to SchemaF
+    * Since there are some avro shcemas that we do not handle here,
+    * we need a CoalgebraM, but we're not really interested in providing meaningful errors
+    * here, so we can use Option as our monad.
+    */
+  def avroToSchemaF: CoalgebraM[Option, SchemaF, Schema] = TODO
 }

@@ -1,6 +1,6 @@
+package lc2018
 package solutions
 
-import lc2018.solutions._
 import matryoshka._
 import matryoshka.data.Fix
 import matryoshka.implicits._
@@ -36,48 +36,73 @@ import scala.language.higherKinds
   * the struct as being the same class.
   * But as it will obviously have different fields - you'll most likely end up with an error.
   *
-  * Good hunting.
+  * Happy hunting.
   */
-object SparkConverter {
+object SparkConverter extends GDataInstances {
 
-  def fromGDataToSparkRow(row: Fix[GData]): Row = {
-    val gAlgebra: GAlgebra[(Fix[GData], ?), GData, Row] = {
-      case GArray(elems) =>
-        val values = elems.map {
-          case (previous, current) =>
-            val prev = previous.unFix
-            if (prev.isInstanceOf[GArray[_]] || prev.isInstanceOf[GStruct[_]])
-              current
-            else
-              current.values.head
-        }
-        Row(values)
+  def isOfSimpleType[D](data: GData[D]) = data match {
+    case GStruct(_) | GArray(_) => true
+    case _                      => false
+  }
 
-      case GStruct(fields) =>
-        val values = fields.map { field =>
-          val (fx, value) = field._2
-          val prev        = fx.unFix
-          if (prev.isInstanceOf[GArray[_]] || prev.isInstanceOf[GStruct[_]]) {
+  /**
+    * We have a proper way to overcome this problem. There is a `para` scheme that works a little bit like cata.
+    * Using para, our algebra will "see" not only the result of its application to the level bellow but also
+    * the structure of that level we just processed.
+    *
+    * To use para, we need a special kind of algebra : a GAlgebra. Given a functor F and a comonad W, Galgebra[W, F, A]
+    * is simply a function F[W[A]] => A, so our carrier is simply wrapped in an additional layer.
+    *
+    * For para's GAlgebra we use (T[F], ?) as our comonad, in other words, our carrier will be paired with the "tree" we
+    * processed during the previous step.
+    *
+    * We will use that to know when we need to "unwrap" the value we had wrapped in a Row at the previous step although we
+    * shouldn't have.
+    */
+  def gDataToRow[D](implicit D: Recursive.Aux[D, GData]): GAlgebra[(D, ?), GData, Row] = {
+    case GArray(elems) =>
+      val values = elems.map {
+        case (previous, current) =>
+          if (isOfSimpleType(previous.project))
+            current
+          else
+            current.values.head
+      }
+      Row(values)
+
+    case GStruct(fields) =>
+      val values = fields.map {
+        case (k, (previous, value)) =>
+          if (isOfSimpleType(previous.project)) {
             value
           } else {
             value.values.head
           }
-        }
-        Row(values.toSeq: _*)
+      }
+      Row(values.toSeq: _*)
 
-      case GBoolean(el) => Row(el)
-      case GFloat(el)   => Row(el)
-      case GInteger(el) => Row(el)
-      case GDate(el)    => Row(el)
-      case GLong(el)    => Row(el)
-      case GDouble(el)  => Row(el)
-      case GString(el)  => Row(el)
-    }
-    row.para[Row](gAlgebra)
+    case GBoolean(el) => Row(el)
+    case GFloat(el)   => Row(el)
+    case GInteger(el) => Row(el)
+    case GDate(el)    => Row(el)
+    case GLong(el)    => Row(el)
+    case GDouble(el)  => Row(el)
+    case GString(el)  => Row(el)
   }
+
+  def fromGDataToSparkRow(row: Fix[GData]): Row =
+    row.para[Row](gDataToRow)
+
 }
 
-object AvroConverter extends SchemaToAvroAlgebras {
+/**
+  * We'll also need Avro to serialize streaming data into Kafka topics.
+  *
+  * This is just another kind of pain :). We will be using Avro's GenericContainer interface.
+  * To build a GenericContainer you need an Avro schema, so we'll have to somehow "zip" the data
+  * we want to serialize with its schema (this should remind you of something we already did).
+  */
+object AvroConverter extends SchemaToAvroAlgebras with GDataInstances {
 
   import scala.collection.JavaConverters._
 
@@ -91,8 +116,24 @@ object AvroConverter extends SchemaToAvroAlgebras {
 
   case class Incompatibility[D](schema: Schema, data: D)
 
+  /**
+    * Avro API is not very typesafe, all values inside GenericRecord are treated as mere Objects.
+    * They didn't defined a GenericContainer for storing simple values (like numbers, strings, etc).
+    * So we need to define one, for there is no way *we* work on non-types like Any or AnyRef.
+    */
   case class SimpleValue(value: Any) extends GenericContainer {
     override def getSchema: Schema = ???
+  }
+
+  /**
+    * But this is for our convenience only, we still need to feed avro API methods with unwrapped
+    * simple values, so don't forget to use this method whenever needed.
+    */
+  def unwrap(container: GenericContainer): Any = {
+    container match {
+      case SimpleValue(value) => value
+      case value              => value
+    }
   }
 
   def fromGDataToAvro[S, D](schema: S, data: D)(
@@ -167,12 +208,6 @@ object AvroConverter extends SchemaToAvroAlgebras {
     (schema, data).hyloM[\/[Incompatibility[D], ?], DataWithSchema, GenericContainer](alg, zipWithSchemaAlg)
   }
 
-  def unwrap(container: GenericContainer): Any = {
-    container match {
-      case SimpleValue(value) => value
-      case value              => value
-    }
-  }
 }
 
 trait GDataInstances {

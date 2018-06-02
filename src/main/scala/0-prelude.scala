@@ -58,7 +58,7 @@ object PeanoNumbers {
 }
 
 /**
-  * We now move one to a more interesting recursive structure: the binary tree.
+  * We now move on to a more interesting recursive structure: the binary tree.
   */
 object BinaryTrees {
 

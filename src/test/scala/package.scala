@@ -1,12 +1,13 @@
 package lc2018
 
+import jto.validation.Rule
 import jto.validation.jsonast._
 import matryoshka._, implicits._
 import org.joda.time.LocalDateTime
 
 import org.joda.time.format.ISODateTimeFormat
 import play.api.libs.json._
-import scalaz.Functor
+import scalaz.{Applicative, Functor}
 
 package object solutions {
   def toJson[D](value: D)(implicit D: Recursive.Aux[D, GData], F: Functor[GData]): JValue = {
@@ -28,4 +29,12 @@ package object solutions {
     }
     value.cata(alg)
   }
+
+  import SchemaRules.JRule
+  implicit val ruleApplicativeForScalaz: Applicative[JRule] = new Applicative[JRule] {
+    override def point[A](a: => A): JRule[A] = Rule.pure(a)
+
+    override def ap[A, B](fa: => JRule[A])(f: => JRule[A => B]): JRule[B] = fa.ap(f)
+  }
+
 }

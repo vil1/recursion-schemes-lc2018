@@ -7,7 +7,7 @@ import org.apache.avro.generic.GenericData
 import org.scalacheck.Prop._
 import org.scalacheck._
 import org.scalatest.{FlatSpec, Matchers}
-import solutions.AvroConverter.{schemaFToAvro, _}
+import AvroConverter._
 
 import scala.collection.immutable.ListMap
 

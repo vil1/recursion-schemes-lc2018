@@ -19,7 +19,7 @@ They cannot provide us with a schema for such patches, because the *schema* of t
 
 In other words, we want to write a function that given a JSON patch, the schema of the target entity (as a `T[SchemaF])` and the current state of the target entity (as a T[DataF]):
 1. verifies that the patche's `path` exists in the entity's schema (it points to a subshema) and that the patch's `value` complies to this subschema (producing a representation of `value` as a `T[DataF]`
-2. uses that representation to perform the patche's operation on the current state of the entity. We'll only implement the `add`, `replace` and `remove` operations. 
+2. uses that representation to perform the patche's operation on the current state of the entity. We'll only implement the `replace` operation. 
 
 ### Before you start
 
@@ -27,5 +27,5 @@ This last assignment is by far the most difficult, be (we hope that) it's also t
 
 From an educational point of view, it would be better if you tried to build your own solution from sratch and come up with your own strategy. By now you should know all the required tactics to solve this problem. We've encoded a simple representation for JSON patches in `src/main/scala/JsonPatch.scala`, you might also be interested in the definition of `matryoshka.patterns.ListF`.
 
-If you find yourself stuck, or feel you might lack time to finish, we've laid out a solution in `src/main/scala/5-patches.scala` (you'll still need to implement the algebras though).
+If you find yourself stuck or feel you might lack time to finish, we've laid out a solution in `src/main/scala/solutions/5-patches.scala`. But don't cheat and jump right at the solution before you've tried to come up with your own.
 

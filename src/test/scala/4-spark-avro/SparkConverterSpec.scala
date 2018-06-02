@@ -12,7 +12,7 @@ import org.scalacheck.Prop._
 import org.scalacheck._
 import org.scalatest.{FlatSpec, Matchers}
 import play.api.libs.json._
-import solutions.SparkConverter._
+import SparkConverter._
 
 import scala.collection.immutable.ListMap
 

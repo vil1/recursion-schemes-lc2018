@@ -202,8 +202,9 @@ trait SchemaFArbitrary {
           Gen.const(StringF[A]()),
           for {
             nbFields <- Gen.choose(1, 10)
-            names    <- Gen.listOfN(nbFields, Gen.alphaStr).map(_.map("a" ++ _).toSet)
-            types    <- Gen.listOfN(names.size, A.arbitrary)
+            // we need to make sure that fields' names are unique and non empty
+            names <- Gen.listOfN(nbFields, Gen.alphaStr).map(_.map("a" ++ _).toSet)
+            types <- Gen.listOfN(names.size, A.arbitrary)
           } yield StructF[A](ListMap((names.toList zip types): _*)),
           A.arbitrary.map(ArrayF.apply _)
         )

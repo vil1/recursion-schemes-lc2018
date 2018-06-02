@@ -7,7 +7,6 @@ import matryoshka.data._
 import org.scalacheck.Arbitrary
 import scalaz.Scalaz._
 import scalaz._
-//import GDataInstances._
 
 import scala.collection.immutable.ListMap
 import scala.language.higherKinds
@@ -47,6 +46,7 @@ object GData //extends GDataInstances with DataWithSchemaGenerator
   * and create a `Rule` for each value, field of struct or array.
   */
 object SchemaRules {
+
   /**
     * Here we only define a simple type alias to simplify the code later on.
     */
@@ -55,19 +55,9 @@ object SchemaRules {
   /**
     * One important thing is that going through a struct
     * means going through its fields one-by-one and generate `Rules`
-    * that will be translate to a `Rule` for the whole struct.
+    * that will be translated to a `Rule` for the whole struct.
     *
-    * The best way will be to traverse the fields and this Applicative
-    * will help reconciliate the rules
-    */
-  implicit val ruleApplicativeForScalaz: Applicative[JRule] = new Applicative[JRule] {
-    override def point[A](a: => A): JRule[A] = Rule.pure(a)
-
-    override def ap[A, B](fa: => JRule[A])(f: => JRule[A => B]): JRule[B] = fa.ap(f)
-  }
-
-  /**
-    * So now let's map each type of SchemaF to its specific Rule
+    * The best way will be to `traverse` the fields (there is an Applicative instance for JRule)
     */
   def fromSchemaToRules(schema: Fix[SchemaF]): JRule[Fix[GData]] = TODO
 

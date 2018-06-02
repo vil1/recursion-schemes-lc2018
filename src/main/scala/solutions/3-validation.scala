@@ -7,7 +7,6 @@ import matryoshka.data._
 import org.scalacheck.Arbitrary
 import scalaz.Scalaz._
 import scalaz._
-import solutions.GDataInstances
 
 import scala.collection.immutable.ListMap
 import scala.language.higherKinds

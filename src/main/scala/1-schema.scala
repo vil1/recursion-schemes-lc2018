@@ -1,6 +1,6 @@
 package lc2018
 
-import org.scalacheck.Arbitrary
+import org.scalacheck.{Arbitrary, Gen}
 import scala.collection.immutable.ListMap
 import scalaz._, Scalaz._
 import matryoshka._, implicits._
@@ -46,7 +46,9 @@ object SchemaF extends SchemaFToDataTypeAlgebras with SchemaFArbitrary {
     *
     */
   implicit val schemaFDelayShow: Delay[Show, SchemaF] = new Delay[Show, SchemaF] {
-    def apply[A](showA: Show[A]): Show[SchemaF[A]] = TODO
+    def apply[A](showA: Show[A]): Show[SchemaF[A]] = new Show[SchemaF[A]] {
+      override def show(schema: SchemaF[A]): Cord = TODO
+    }
   }
 
 }
@@ -136,14 +138,7 @@ trait SchemaFToDataTypeAlgebras {
   *
   * You're right of course! We still have to write tests!
   *
-  * And one of the best ways to test some code is to use property-based testing. But for that, we first need
-  * a way to generate random data, in our case random schemas.
-  *
-  * Using scalacheck, we need to write an `Arbitrary[T[SchemaF]]` (with `T`  being any fix-point type).
-  * Once again, we'll resort to `Delay` for that. Usually, this code would go somewhere under src/test/scala,
-  * but we put it there for the sake of having fewer files to edit.
-  *
-  * You can check the tests using this under src/test/scala/1-schema/.
+  * Let's meet again in `src/test/scala/1-schema/ParquetSpec.scala`.
   */
 trait SchemaFArbitrary {
 
