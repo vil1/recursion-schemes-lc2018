@@ -27,5 +27,5 @@ This last assignment is by far the most difficult, be (we hope that) it's also t
 
 From an educational point of view, it would be better if you tried to build your own solution from sratch and come up with your own strategy. By now you should know all the required tactics to solve this problem. We've encoded a simple representation for JSON patches in `src/main/scala/JsonPatch.scala`, you might also be interested in the definition of `matryoshka.patterns.ListF`.
 
-If you find yourself stuck or feel you might lack time to finish, we've laid out a solution in `src/main/scala/solutions/5-patches.scala`. But don't cheat and jump right at the solution before you've tried to come up with your own.
+Nevertheless, if you find yourself stuck or feel you might lack time to finish, we've laid out a solution in `src/main/scala/solutions/5-patches.scala`. But don't cheat and jump right at the solution before you've tried to come up with your own.
 
