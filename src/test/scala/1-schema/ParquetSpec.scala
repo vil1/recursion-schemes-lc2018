@@ -1,4 +1,4 @@
-package lc2018.solutions
+package lc2018
 
 import org.apache.spark.sql.types._
 import org.scalacheck._

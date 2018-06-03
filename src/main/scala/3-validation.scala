@@ -38,7 +38,7 @@ final case class GLong[A](value: Long) extends GData[A]
 
 final case class GString[A](value: String) extends GData[A]
 
-object GData //extends GDataInstances with DataWithSchemaGenerator
+object GData extends GDataInstances with DataWithSchemaGenerator
 
 /**
   * This is where you'll be working your magic.
@@ -59,7 +59,7 @@ object SchemaRules {
     *
     * The best way will be to `traverse` the fields (there is an Applicative instance for JRule)
     */
-  def fromSchemaToRules(schema: Fix[SchemaF]): JRule[Fix[GData]] = TODO
+  def fromSchemaToRules[T](schema: T)(implicit T: Recursive.Aux[T, SchemaF]): JRule[Fix[GData]] = TODO
 
 }
 
@@ -82,5 +82,5 @@ trait DataWithSchemaGenerator {
   // Bonus : handle number of fields
   // Bonus : handle max depth to "finish somewhere"
   // And don't forget the master defining what to generate is the schema
-  def genSchemaAndData: Gen[(Fix[SchemaF], Fix[GData])] = TODO
+  def genSchemaAndData[S, D](implicit S: Birecursive.Aux[S, SchemaF], D: Corecursive.Aux[D, GData]): Gen[(S, D)] = TODO
 }

@@ -77,13 +77,15 @@ object AvroConverter extends SchemaToAvroAlgebras with GDataInstances {
   import scala.collection.JavaConverters._
 
   /**
-    * A generic schema (of type [[SchemaF]]) with each element
+    * A generic data (of type [[GData]]) with each element
     * labelled with the corresponding `avro.Schema`.
     */
-  type SchemaWithAvro[A] = EnvT[Schema, SchemaF, A]
-
   type DataWithSchema[A] = EnvT[Schema, GData, A]
 
+  /**
+    * When we'll zip data and schema there may be times when those two don't mix
+    * we need to handle that case - this is what an Incompatibility is.
+    */
   case class Incompatibility[D](schema: Schema, data: D)
 
   /**
@@ -92,7 +94,7 @@ object AvroConverter extends SchemaToAvroAlgebras with GDataInstances {
     * So we need to define one, for there is no way *we* work on non-types like Any or AnyRef.
     */
   case class SimpleValue(value: Any) extends GenericContainer {
-    override def getSchema: Schema = ???
+    override def getSchema: Schema = throw new NotImplementedError() // we won't use that anyway
   }
 
   /**

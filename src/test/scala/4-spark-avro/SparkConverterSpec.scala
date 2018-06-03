@@ -1,25 +1,22 @@
-package lc2018.solutions
+package lc2018
 
-import jto.validation.jsonast.Ast
-import lc2018.solutions.GData._
-import lc2018.solutions.SchemaRules._
-import matryoshka._, implicits._
-import matryoshka.data._, Fix._
+import lc2018.GData._
+import lc2018.SparkConverter._
+import matryoshka._
+import matryoshka.implicits._
+import matryoshka.data.Fix._
+import matryoshka.data._
 import org.apache.spark.sql.Row
-import org.joda.time.LocalDateTime
-import org.joda.time.format.ISODateTimeFormat
 import org.scalacheck.Prop._
 import org.scalacheck._
 import org.scalatest.{FlatSpec, Matchers}
-import play.api.libs.json._
-import SparkConverter._
 
 import scala.collection.immutable.ListMap
 
 class SparkConverterSpec extends Properties("Spark-rules algebras") with SchemaToAvroAlgebras {
 
   property("should generate valid and compatible data vs schema") = forAll(genSchemaAndData[Fix[SchemaF], Fix[GData]]) {
-    case (schema, data) => fromGDataToSparkRow(data) != null // should not fail
+    case (_, data) => fromGDataToSparkRow(data) != null // should not fail
   }
 }
 

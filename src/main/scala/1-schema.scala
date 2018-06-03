@@ -105,7 +105,7 @@ trait SchemaFToDataTypeAlgebras {
     *
     * And the same goes with `ana` and any Coalgebra[SchemaF, X].
     */
-  implicit val dataTypeSchemaBirecursive: Birecursive.Aux[DataType, SchemaF] =
+  implicit def dataTypeSchemaBirecursive: Birecursive.Aux[DataType, SchemaF] =
     Birecursive.fromAlgebraIso(schemaFToDataType, dataTypeToSchemaF)
 }
 
@@ -142,7 +142,7 @@ trait SchemaFToDataTypeAlgebras {
   */
 trait SchemaFArbitrary {
 
-  implicit val schemaFDelayArbitrary: Delay[Arbitrary, SchemaF] = new Delay[Arbitrary, SchemaF] {
+  implicit def schemaFDelayArbitrary: Delay[Arbitrary, SchemaF] = new Delay[Arbitrary, SchemaF] {
 
     def apply[A](A: Arbitrary[A]): Arbitrary[SchemaF[A]] = TODO
 

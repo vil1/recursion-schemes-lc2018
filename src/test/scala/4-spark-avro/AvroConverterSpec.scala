@@ -1,6 +1,6 @@
-package lc2018.solutions
+package lc2018
 
-import lc2018.solutions.GData._
+import lc2018.GData._
 import matryoshka._, implicits._
 import matryoshka.data._, Fix._
 import org.apache.avro.generic.GenericData

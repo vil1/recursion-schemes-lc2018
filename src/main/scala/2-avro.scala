@@ -104,7 +104,7 @@ trait UsingARegistry {
 
   def useARegistry: AlgebraM[Registry, SchemaF, Schema] = TODO
 
-  implicit val schemaFTraverse: Traverse[SchemaF] = TODO
+  implicit def schemaFTraverse: Traverse[SchemaF] = TODO
 
   def toAvro[T](schemaF: T)(implicit T: Recursive.Aux[T, SchemaF]): Schema =
     schemaF.cataM(useARegistry).run(Map.empty)._2

@@ -1,4 +1,4 @@
-package lc2018.solutions
+package lc2018
 
 import org.scalacheck.Properties
 import org.scalacheck.Prop._

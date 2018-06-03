@@ -1,8 +1,8 @@
-package lc2018.solutions
+package lc2018
 
 import jto.validation.jsonast.Ast
-import lc2018.solutions.GData._
-import lc2018.solutions.SchemaRules._
+import lc2018.GData._
+import lc2018.SchemaRules._
 import matryoshka._
 import matryoshka.data._, Fix._
 import matryoshka.implicits._
